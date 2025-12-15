@@ -1,0 +1,958 @@
+[
+    {
+        "id": "f5817b640c5e8c94",
+        "type": "tab",
+        "label": "Rehab MQTT (PDF v3)",
+        "disabled": false,
+        "locked": true,
+        "info": "✅ Graphiques temps réel\n✅ Connexions optimisées\n✅ Génération PDF via pdfmake"
+    },
+    {
+        "id": "93b6cc2fbb2185bf",
+        "type": "mqtt in",
+        "z": "f5817b640c5e8c94",
+        "name": "Tous topics patient P001",
+        "topic": "patient/P001/#",
+        "qos": "0",
+        "datatype": "auto",
+        "broker": "mqtt_broker_local",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 140,
+        "y": 120,
+        "wires": [
+            [
+                "a663703d7d08f6eb"
+            ]
+        ]
+    },
+    {
+        "id": "a663703d7d08f6eb",
+        "type": "json",
+        "z": "f5817b640c5e8c94",
+        "name": "Parse JSON",
+        "property": "payload",
+        "action": "",
+        "pretty": false,
+        "x": 350,
+        "y": 120,
+        "wires": [
+            [
+                "4c5fed8a61b486ed"
+            ]
+        ]
+    },
+    {
+        "id": "4c5fed8a61b486ed",
+        "type": "switch",
+        "z": "f5817b640c5e8c94",
+        "name": "Type: Activity or Accel",
+        "property": "topic",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "cont",
+                "v": "/activity",
+                "vt": "str"
+            },
+            {
+                "t": "cont",
+                "v": "/accel",
+                "vt": "str"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 2,
+        "x": 560,
+        "y": 120,
+        "wires": [
+            [
+                "60c58628c5599e89"
+            ],
+            [
+                "c262c6f904c9ce8d"
+            ]
+        ]
+    },
+    {
+        "id": "60c58628c5599e89",
+        "type": "switch",
+        "z": "f5817b640c5e8c94",
+        "name": "Activity: LEFT/RIGHT",
+        "property": "payload.hand",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "eq",
+                "v": "left",
+                "vt": "str"
+            },
+            {
+                "t": "eq",
+                "v": "right",
+                "vt": "str"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 2,
+        "x": 800,
+        "y": 100,
+        "wires": [
+            [
+                "b09f1ceb17d43220"
+            ],
+            [
+                "e83b4ac6ba1e6ecc"
+            ]
+        ]
+    },
+    {
+        "id": "c262c6f904c9ce8d",
+        "type": "switch",
+        "z": "f5817b640c5e8c94",
+        "name": "Accel: LEFT/RIGHT",
+        "property": "payload.hand",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "eq",
+                "v": "left",
+                "vt": "str"
+            },
+            {
+                "t": "eq",
+                "v": "right",
+                "vt": "str"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 2,
+        "x": 800,
+        "y": 280,
+        "wires": [
+            [
+                "a5793646008eefdf"
+            ],
+            [
+                "9142148cf0b05ab9"
+            ]
+        ]
+    },
+    {
+        "id": "b09f1ceb17d43220",
+        "type": "function",
+        "z": "f5817b640c5e8c94",
+        "name": "Format Activity LEFT",
+        "func": "const a = msg.payload.activity || \"?\";\nconst c = Math.round((msg.payload.confidence || 0) * 100);\n\n// NOUVEAU : On enregistre chaque activité si le test tourne\nconst testStatus = flow.get('test_status') || 'Arrêté';\nif (testStatus.includes('EN COURS')) {\n    let activities = flow.get('test_activities_left') || [];\n    activities.push(a);\n    flow.set('test_activities_left', activities);\n}\n\nreturn [\n    { payload: a },\n    { payload: c + \" %\" }\n];",
+        "outputs": 2,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1060,
+        "y": 80,
+        "wires": [
+            [
+                "62c0cd1acfc84c56"
+            ],
+            [
+                "9716c2ce2060361d"
+            ]
+        ]
+    },
+    {
+        "id": "e83b4ac6ba1e6ecc",
+        "type": "function",
+        "z": "f5817b640c5e8c94",
+        "name": "Format Activity RIGHT",
+        "func": "const a = msg.payload.activity || \"?\";\nconst c = Math.round((msg.payload.confidence || 0) * 100);\n\n// NOUVEAU : On enregistre chaque activité si le test tourne\nconst testStatus = flow.get('test_status') || 'Arrêté';\nif (testStatus.includes('EN COURS')) {\n    let activities = flow.get('test_activities_right') || [];\n    activities.push(a);\n    flow.set('test_activities_right', activities);\n}\n\nreturn [\n    { payload: a },\n    { payload: c + \" %\" }\n];",
+        "outputs": 2,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1060,
+        "y": 140,
+        "wires": [
+            [
+                "ba3ee9871affaa68"
+            ],
+            [
+                "9f01ae3bcfdd91eb"
+            ]
+        ]
+    },
+    {
+        "id": "62c0cd1acfc84c56",
+        "type": "ui-text",
+        "z": "f5817b640c5e8c94",
+        "group": "ui_group_left",
+        "order": 5,
+        "width": "6",
+        "height": "2",
+        "name": "Activity LEFT",
+        "label": "Activité",
+        "format": "<div style=\"text-align: center; font-size: 28px; font-weight: bold; color: #2196F3;\">{{msg.payload}}</div>",
+        "layout": "row-center",
+        "style": false,
+        "font": "",
+        "fontSize": 16,
+        "color": "#717171",
+        "wrapText": false,
+        "className": "",
+        "value": "payload",
+        "valueType": "msg",
+        "x": 1340,
+        "y": 60,
+        "wires": []
+    },
+    {
+        "id": "9716c2ce2060361d",
+        "type": "ui-text",
+        "z": "f5817b640c5e8c94",
+        "group": "ui_group_left",
+        "order": 4,
+        "width": "6",
+        "height": "1",
+        "name": "Confidence LEFT",
+        "label": "Confiance",
+        "format": "<div style=\"text-align: center; font-size: 20px; font-weight: bold; color: #2196F3;\">{{msg.payload}}</div>",
+        "layout": "row-center",
+        "style": false,
+        "font": "",
+        "fontSize": 16,
+        "color": "#717171",
+        "className": "",
+        "x": 1340,
+        "y": 100,
+        "wires": []
+    },
+    {
+        "id": "ba3ee9871affaa68",
+        "type": "ui-text",
+        "z": "f5817b640c5e8c94",
+        "group": "ui_group_right",
+        "order": 2,
+        "width": "6",
+        "height": "2",
+        "name": "Activity RIGHT",
+        "label": "Activité",
+        "format": "<div style=\"text-align: center; font-size: 28px; font-weight: bold; color: #4caf50;\">{{msg.payload}}</div>",
+        "layout": "row-center",
+        "style": false,
+        "font": "",
+        "fontSize": 16,
+        "color": "#717171",
+        "className": "",
+        "x": 1340,
+        "y": 140,
+        "wires": []
+    },
+    {
+        "id": "9f01ae3bcfdd91eb",
+        "type": "ui-text",
+        "z": "f5817b640c5e8c94",
+        "group": "ui_group_right",
+        "order": 3,
+        "width": "6",
+        "height": "1",
+        "name": "Confidence RIGHT",
+        "label": "Confiance",
+        "format": "<div style=\"text-align: center; font-size: 20px; font-weight: bold; color: #4caf50;\">{{msg.payload}}</div>",
+        "layout": "row-center",
+        "style": false,
+        "font": "",
+        "fontSize": 16,
+        "color": "#717171",
+        "className": "",
+        "x": 1340,
+        "y": 180,
+        "wires": []
+    },
+    {
+        "id": "a5793646008eefdf",
+        "type": "function",
+        "z": "f5817b640c5e8c94",
+        "name": "Format Accel LEFT",
+        "func": "const testStatus = flow.get('test_status') || 'Arrêté';\nconst valX = parseFloat(msg.payload.x || 0);\nconst valY = parseFloat(msg.payload.y || 0);\nconst valZ = parseFloat(msg.payload.z || 0);\n\n// Enregistrement si test en cours\nif (testStatus.includes('EN COURS')) {\n    let testData = flow.get('test_data_left') || [];\n    testData.push({\n        timestamp: Date.now(),\n        x: valX,\n        y: valY,\n        z: valZ\n    });\n    if (testData.length > 3000) testData.shift();\n    flow.set('test_data_left', testData);\n}\n\nconst strX = valX.toFixed(2);\nconst strY = valY.toFixed(2);\nconst strZ = valZ.toFixed(2);\n\nreturn [\n    { payload: `X:${strX} Y:${strY} Z:${strZ}` },\n    { payload: valX, topic: \"X_left\" },\n    { payload: valY, topic: \"Y_left\" },\n    { payload: valZ, topic: \"Z_left\" }\n];",
+        "outputs": 4,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1060,
+        "y": 240,
+        "wires": [
+            [
+                "a43b2bcc17fb0d31"
+            ],
+            [
+                "74217ae81cf974d2"
+            ],
+            [
+                "74217ae81cf974d2"
+            ],
+            [
+                "74217ae81cf974d2"
+            ]
+        ]
+    },
+    {
+        "id": "9142148cf0b05ab9",
+        "type": "function",
+        "z": "f5817b640c5e8c94",
+        "name": "Format Accel RIGHT",
+        "func": "const testStatus = flow.get('test_status') || 'Arrêté';\nconst valX = parseFloat(msg.payload.x || 0);\nconst valY = parseFloat(msg.payload.y || 0);\nconst valZ = parseFloat(msg.payload.z || 0);\n\nif (testStatus.includes('EN COURS')) {\n    let testData = flow.get('test_data_right') || [];\n    testData.push({\n        timestamp: Date.now(),\n        x: valX,\n        y: valY,\n        z: valZ\n    });\n    if (testData.length > 3000) testData.shift();\n    flow.set('test_data_right', testData);\n}\n\nconst strX = valX.toFixed(2);\nconst strY = valY.toFixed(2);\nconst strZ = valZ.toFixed(2);\n\nreturn [\n    { payload: `X:${strX} Y:${strY} Z:${strZ}` },\n    { payload: valX, topic: \"X_right\" },\n    { payload: valY, topic: \"Y_right\" },\n    { payload: valZ, topic: \"Z_right\" }\n];",
+        "outputs": 4,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1060,
+        "y": 320,
+        "wires": [
+            [
+                "3e7dc73c29e9bc8c"
+            ],
+            [
+                "4a1fce600ecae9d6"
+            ],
+            [
+                "4a1fce600ecae9d6"
+            ],
+            [
+                "4a1fce600ecae9d6"
+            ]
+        ]
+    },
+    {
+        "id": "a43b2bcc17fb0d31",
+        "type": "ui-text",
+        "z": "f5817b640c5e8c94",
+        "group": "ui_group_left",
+        "order": 4,
+        "width": "6",
+        "height": "1",
+        "name": "Accel LEFT",
+        "label": "Accéléromètre",
+        "format": "{{msg.payload}}",
+        "layout": "row-spread",
+        "style": false,
+        "font": "",
+        "fontSize": 14,
+        "color": "#717171",
+        "className": "",
+        "x": 1330,
+        "y": 220,
+        "wires": []
+    },
+    {
+        "id": "3e7dc73c29e9bc8c",
+        "type": "ui-text",
+        "z": "f5817b640c5e8c94",
+        "group": "ui_group_right",
+        "order": 4,
+        "width": "6",
+        "height": "1",
+        "name": "Accel RIGHT",
+        "label": "Accéléromètre",
+        "format": "{{msg.payload}}",
+        "layout": "row-spread",
+        "style": false,
+        "font": "",
+        "fontSize": 14,
+        "color": "#717171",
+        "className": "",
+        "x": 1330,
+        "y": 300,
+        "wires": []
+    },
+    {
+        "id": "74217ae81cf974d2",
+        "type": "ui-chart",
+        "z": "f5817b640c5e8c94",
+        "group": "ui_group_left",
+        "name": "Accel LEFT 60s",
+        "label": "🫲 Accél. Gauche (60s)",
+        "order": 5,
+        "chartType": "line",
+        "category": "topic",
+        "categoryType": "msg",
+        "xAxisLabel": "",
+        "xAxisProperty": "",
+        "xAxisPropertyType": "timestamp",
+        "xAxisType": "time",
+        "xAxisFormat": "",
+        "xAxisFormatType": "auto",
+        "xmin": "",
+        "xmax": "",
+        "yAxisLabel": "",
+        "yAxisProperty": "payload",
+        "yAxisPropertyType": "msg",
+        "ymin": "",
+        "ymax": "",
+        "bins": "",
+        "stackSeries": false,
+        "pointRadius": "",
+        "showLegend": true,
+        "removeOlder": 1,
+        "removeOlderUnit": "60",
+        "removeOlderPoints": "",
+        "colors": [
+            "#1f77b4",
+            "#ff7f0e",
+            "#2ca02c",
+            "#d62728",
+            "#9467bd",
+            "#000000",
+            "#000000",
+            "#000000",
+            "#000000"
+        ],
+        "textColor": [
+            "#666666"
+        ],
+        "textColorDefault": true,
+        "gridColor": [
+            "#e5e5e5"
+        ],
+        "gridColorDefault": true,
+        "width": "6",
+        "height": "7",
+        "className": "",
+        "interpolation": "linear",
+        "x": 1340,
+        "y": 260,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "4a1fce600ecae9d6",
+        "type": "ui-chart",
+        "z": "f5817b640c5e8c94",
+        "group": "ui_group_right",
+        "name": "Accel RIGHT 60s",
+        "label": "🫱 Accél. Droit (60s)",
+        "order": 5,
+        "chartType": "line",
+        "category": "topic",
+        "categoryType": "msg",
+        "xAxisLabel": "",
+        "xAxisProperty": "",
+        "xAxisPropertyType": "timestamp",
+        "xAxisType": "time",
+        "xAxisFormat": "",
+        "xAxisFormatType": "auto",
+        "xmin": "",
+        "xmax": "",
+        "yAxisLabel": "",
+        "yAxisProperty": "payload",
+        "yAxisPropertyType": "msg",
+        "ymin": "",
+        "ymax": "",
+        "bins": "",
+        "stackSeries": false,
+        "pointRadius": "",
+        "showLegend": true,
+        "removeOlder": 1,
+        "removeOlderUnit": "60",
+        "removeOlderPoints": "",
+        "colors": [
+            "#1f77b4",
+            "#ff7f0e",
+            "#2ca02c",
+            "#d62728",
+            "#9467bd",
+            "#000000",
+            "#000000",
+            "#000000",
+            "#000000"
+        ],
+        "textColor": [
+            "#666666"
+        ],
+        "textColorDefault": true,
+        "gridColor": [
+            "#e5e5e5"
+        ],
+        "gridColorDefault": true,
+        "width": "6",
+        "height": "7",
+        "className": "",
+        "interpolation": "linear",
+        "x": 1340,
+        "y": 340,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "42d5e68b005ab84d",
+        "type": "ui-button",
+        "z": "f5817b640c5e8c94",
+        "group": "3f6f57d5cb7f8161",
+        "name": "🚀 Start Test",
+        "label": "🚀 DÉMARRER TEST 10s",
+        "order": 1,
+        "width": 4,
+        "height": 1,
+        "emulateClick": false,
+        "className": "",
+        "icon": "",
+        "iconPosition": "left",
+        "payload": "start_test",
+        "payloadType": "str",
+        "topic": "",
+        "topicType": "str",
+        "buttonColor": "",
+        "textColor": "",
+        "iconColor": "",
+        "enableClick": true,
+        "enablePointerdown": false,
+        "pointerdownPayload": "",
+        "pointerdownPayloadType": "str",
+        "enablePointerup": false,
+        "pointerupPayload": "",
+        "pointerupPayloadType": "str",
+        "x": 160,
+        "y": 440,
+        "wires": [
+            [
+                "7f6f4d89340a4989"
+            ]
+        ]
+    },
+    {
+        "id": "f9a1a36f2547539d",
+        "type": "ui-button",
+        "z": "f5817b640c5e8c94",
+        "group": "3f6f57d5cb7f8161",
+        "name": "⏹️ Stop Test",
+        "label": "⏹️ ARRÊTER TEST",
+        "order": 2,
+        "width": 4,
+        "height": 1,
+        "emulateClick": false,
+        "className": "",
+        "icon": "",
+        "iconPosition": "left",
+        "payload": "stop_test",
+        "payloadType": "str",
+        "topic": "",
+        "topicType": "str",
+        "buttonColor": "",
+        "textColor": "",
+        "iconColor": "",
+        "enableClick": true,
+        "enablePointerdown": false,
+        "pointerdownPayload": "",
+        "pointerdownPayloadType": "str",
+        "enablePointerup": false,
+        "pointerupPayload": "",
+        "pointerupPayloadType": "str",
+        "x": 160,
+        "y": 480,
+        "wires": [
+            [
+                "7f6f4d89340a4989"
+            ]
+        ]
+    },
+    {
+        "id": "afd4bf5abd226c8f",
+        "type": "ui-button",
+        "z": "f5817b640c5e8c94",
+        "group": "3f6f57d5cb7f8161",
+        "name": "📊 Rapport PDF",
+        "label": "📄 GÉNÉRER PDF",
+        "order": 3,
+        "width": 4,
+        "height": 1,
+        "emulateClick": false,
+        "className": "",
+        "icon": "fa-file-pdf-o",
+        "iconPosition": "left",
+        "payload": "generate_report",
+        "payloadType": "str",
+        "topic": "",
+        "topicType": "str",
+        "buttonColor": "#ff9800",
+        "textColor": "white",
+        "iconColor": "",
+        "enableClick": true,
+        "enablePointerdown": false,
+        "pointerdownPayload": "",
+        "pointerdownPayloadType": "str",
+        "enablePointerup": false,
+        "pointerupPayload": "",
+        "pointerupPayloadType": "str",
+        "x": 160,
+        "y": 520,
+        "wires": [
+            [
+                "7f6f4d89340a4989"
+            ]
+        ]
+    },
+    {
+        "id": "0f17e8c45a6213a1",
+        "type": "ui-text",
+        "z": "f5817b640c5e8c94",
+        "group": "3f6f57d5cb7f8161",
+        "order": 4,
+        "width": 12,
+        "height": 1,
+        "name": "Statut Test",
+        "label": "📈 Statut:",
+        "format": "<div style='font-size: 18px; font-weight: bold; color: #2196F3;'>{{msg.payload}}</div>",
+        "layout": "row-center",
+        "style": false,
+        "font": "",
+        "fontSize": 16,
+        "color": "#717171",
+        "className": "",
+        "x": 610,
+        "y": 440,
+        "wires": []
+    },
+    {
+        "id": "7f6f4d89340a4989",
+        "type": "function",
+        "z": "f5817b640c5e8c94",
+        "name": "🎯 Gestionnaire Tests",
+        "func": "const cmd = msg.payload;\nlet testId = flow.get('current_test_id') || 0;\nlet status = flow.get('test_status') || 'Prêt';\n\n// Sortie 1 : Texte UI Dashboard\n// Sortie 2 : Message pour calcul stats (inchangé)\n// Sortie 3 : Message MQTT pour la LED (NOUVEAU)\n\nif (cmd === 'start_test') {\n    testId++;\n    status = `🚀 Test #${testId} EN COURS (10s)`;\n    \n    flow.set('current_test_id', testId);\n    flow.set('test_status', status);\n    \n    // Réinitialisation des buffers...\n    flow.set('test_data_left', []);\n    flow.set('test_data_right', []);\n    flow.set('test_activities_left', []);\n    flow.set('test_activities_right', []);\n\n    // Timer pour arrêt auto\n    setTimeout(() => {\n        const endMsg = `✅ Test #${testId} TERMINÉ`;\n        flow.set('test_status', endMsg);\n        \n        // Envoi fin à l'UI et fin à la LED\n        node.send([\n            { payload: endMsg }, \n            null, \n            { payload: \"STOP\", topic: \"patient/P001/test/status\" } // Vers LED\n        ]); \n    }, 10000);\n\n    // Envoi début UI et début LED\n    return [\n        { payload: status }, \n        null, \n        { payload: \"START\", topic: \"patient/P001/test/status\" } // Vers LED\n    ];\n}\n\nif (cmd === 'stop_test') {\n    status = `🛑 Test #${testId} ARRÊTÉ (manuel)`;\n    flow.set('test_status', status);\n    \n    return [\n        { payload: status }, \n        null, \n        { payload: \"STOP\", topic: \"patient/P001/test/status\" } // Vers LED\n    ];\n}\n\nif (cmd === 'generate_report') {\n    const statsMsg = { payload: testId };\n    return [null, statsMsg, null];\n}\n\nreturn null;",
+        "outputs": 3,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 390,
+        "y": 480,
+        "wires": [
+            [
+                "0f17e8c45a6213a1"
+            ],
+            [
+                "ad7468c62e1d7984"
+            ],
+            [
+                "3fcfd32b336f0962"
+            ]
+        ]
+    },
+    {
+        "id": "ad7468c62e1d7984",
+        "type": "function",
+        "z": "f5817b640c5e8c94",
+        "name": "📊 Stats Calculation",
+        "func": "const testId = msg.payload;\nconst leftData = flow.get('test_data_left') || [];\nconst rightData = flow.get('test_data_right') || [];\n\n// NOUVEAU : Récupération des listes d'activités\nconst actsLeft = flow.get('test_activities_left') || [];\nconst actsRight = flow.get('test_activities_right') || [];\n\n// Fonction pour trouver l'élément le plus fréquent (Mode)\nfunction getDominantActivity(arr) {\n    if (!arr || arr.length === 0) return \"Indéterminé\";\n    \n    // Compte les occurrences : { \"Marche\": 12, \"Repos\": 2 }\n    const counts = {};\n    let maxCount = 0;\n    let dominant = arr[0];\n    \n    for (const act of arr) {\n        counts[act] = (counts[act] || 0) + 1;\n        if (counts[act] > maxCount) {\n            maxCount = counts[act];\n            dominant = act;\n        }\n    }\n    return dominant;\n}\n\nconst dominantLeft = getDominantActivity(actsLeft);\nconst dominantRight = getDominantActivity(actsRight);\n\nfunction calcStats(data) {\n    if (!data.length) return { \n        count: 0, \n        x:{min:0,max:0,avg:0}, \n        y:{min:0,max:0,avg:0}, \n        z:{min:0,max:0,avg:0},\n        history: [] \n    };\n    \n    const xs = data.map(d => d.x);\n    const ys = data.map(d => d.y);\n    const zs = data.map(d => d.z);\n    \n    const avg = arr => arr.reduce((a,b)=>a+b,0)/arr.length;\n    \n    return {\n        count: data.length,\n        x: {min: Math.min(...xs), max: Math.max(...xs), avg: avg(xs)},\n        y: {min: Math.min(...ys), max: Math.max(...ys), avg: avg(ys)},\n        z: {min: Math.min(...zs), max: Math.max(...zs), avg: avg(zs)},\n        history: data.filter((_, i, arr) => i % Math.ceil(arr.length / 100) === 0)\n    };\n}\n\nconst stats = {\n    testId,\n    // On injecte l'activité dominante ici\n    left: { ...calcStats(leftData), activityName: dominantLeft },\n    right: { ...calcStats(rightData), activityName: dominantRight },\n    timestamp: new Date().toLocaleString('fr-FR')\n};\n\nmsg.payload = stats;\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 620,
+        "y": 480,
+        "wires": [
+            [
+                "2cf9092fe3458711"
+            ]
+        ]
+    },
+    {
+        "id": "2cf9092fe3458711",
+        "type": "function",
+        "z": "f5817b640c5e8c94",
+        "name": "📄 Create PDF Definition",
+        "func": "const stats = msg.payload;\n\n// --- FONCTION GRAPHIQUE SVG AVEC AXES ---\nfunction createSvgChart(dataArray, brasName, activityName, mainColor) {\n    if (!dataArray || dataArray.length === 0) return { text: 'Pas de données' };\n\n    // Dimensions\n    const w = 500;\n    const h = 200;\n    const marginLeft = 40; // Espace pour les chiffres Y\n    const marginBottom = 20; // Espace pour les chiffres X\n    const graphW = w - marginLeft;\n    const graphH = h - marginBottom;\n    \n    // Calcul Min/Max avec marge\n    let allValues = [];\n    dataArray.forEach(d => allValues.push(d.x, d.y, d.z));\n    let minVal = Math.min(...allValues);\n    let maxVal = Math.max(...allValues);\n    let range = maxVal - minVal || 1;\n    \n    const padding = range * 0.1; // 10% de marge\n    const scaleMin = minVal - padding;\n    const scaleMax = maxVal + padding;\n    const scaleRange = scaleMax - scaleMin;\n\n    // Fonctions de conversion\n    const getY = (val) => graphH - ((val - scaleMin) / scaleRange * graphH);\n    const getX = (i) => marginLeft + (i / (dataArray.length - 1)) * graphW;\n\n    // --- CONSTRUCTION DES LIGNES (SVG Paths) ---\n    let pathX = \"\", pathY = \"\", pathZ = \"\";\n    dataArray.forEach((d, i) => {\n        const px = getX(i);\n        pathX += `${px},${getY(d.x)} `;\n        pathY += `${px},${getY(d.y)} `;\n        pathZ += `${px},${getY(d.z)} `;\n    });\n\n    // --- CONSTRUCTION DE LA GRILLE ET DES LABELS AXE Y ---\n    let gridSvg = \"\";\n    const steps = 5; // Nombre de lignes horizontales\n    for (let i = 0; i <= steps; i++) {\n        const val = scaleMin + (scaleRange * (i / steps));\n        const yPos = graphH - (graphH * (i / steps));\n        \n        // Ligne horizontale grise\n        gridSvg += `<line x1=\"${marginLeft}\" y1=\"${yPos}\" x2=\"${w}\" y2=\"${yPos}\" stroke=\"#eee\" stroke-width=\"1\" />`;\n        \n        // Texte de la valeur (arrondi à 1 décimale)\n        gridSvg += `<text x=\"${marginLeft - 5}\" y=\"${yPos + 4}\" fill=\"#666\" font-family=\"Roboto\" font-size=\"9\" text-anchor=\"end\">${val.toFixed(1)}</text>`;\n    }\n\n    // --- LABELS AXE X (Temps) ---\n    // On met juste Début et Fin\n    const timeLabels = `\n        <text x=\"${marginLeft}\" y=\"${h}\" fill=\"#666\" font-family=\"Roboto\" font-size=\"9\">0s</text>\n        <text x=\"${w/2}\" y=\"${h}\" fill=\"#666\" font-family=\"Roboto\" font-size=\"9\" text-anchor=\"middle\">5s</text>\n        <text x=\"${w}\" y=\"${h}\" fill=\"#666\" font-family=\"Roboto\" font-size=\"9\" text-anchor=\"end\">10s</text>\n    `;\n\n    return [\n        // TITRE DU GRAPHIQUE AVEC ACTIVITÉ\n        { \n            text: [\n                { text: brasName + \" : \", bold: true, fontSize: 12 },\n                { text: activityName.toUpperCase(), bold: true, color: mainColor, fontSize: 12 }\n            ], \n            margin: [0, 15, 0, 5] \n        },\n        // LE GRAPHIQUE SVG\n        {\n            svg: `\n            <svg width=\"${w}\" height=\"${h}\">\n                <rect x=\"${marginLeft}\" y=\"0\" width=\"${graphW}\" height=\"${graphH}\" fill=\"#fcfcfc\" stroke=\"#ddd\" stroke-width=\"1\"/>\n                \n                ${gridSvg}\n                \n                ${timeLabels}\n\n                <polyline points=\"${pathX}\" fill=\"none\" stroke=\"#1f77b4\" stroke-width=\"1.5\" />\n                <polyline points=\"${pathY}\" fill=\"none\" stroke=\"#ff7f0e\" stroke-width=\"1.5\" />\n                <polyline points=\"${pathZ}\" fill=\"none\" stroke=\"#2ca02c\" stroke-width=\"1.5\" />\n                \n                <text x=\"10\" y=\"${graphH/2}\" fill=\"#aaa\" font-family=\"Roboto\" font-size=\"9\" transform=\"rotate(-90 10,${graphH/2})\" text-anchor=\"middle\">Accélération (g)</text>\n            </svg>\n            `,\n            width: 500\n        },\n        { \n            text: 'Légende : Bleu = X | Orange = Y | Vert = Z', \n            fontSize: 9, italics:true, color: 'gray', margin: [marginLeft, 2, 0, 10] \n        }\n    ];\n}\n\n// --- DÉFINITION DU DOCUMENT ---\nvar doc = {\n    content: [\n        { text: 'Rapport de Rééducation - Patient P001', style: 'header' },\n        { text: 'Test #' + stats.testId + ' du ' + stats.timestamp, style: 'subheader' },\n        \n        // TABLEAU DE SYNTHÈSE (identique avant)\n        {\n            style: 'tableExample',\n            table: {\n                widths: ['*', '*', '*', '*'],\n                body: [\n                    [{text: 'Bras / Axe', style: 'tableHeader'}, {text: 'Min', style: 'tableHeader'}, {text: 'Moy', style: 'tableHeader'}, {text: 'Max', style: 'tableHeader'}],\n                    \n                    [{text: 'Bras Gauche (' + stats.left.activityName + ')', colSpan: 4, alignment: 'center', fillColor: '#2196F3', color: 'white', bold: true}, {}, {}, {}],\n                    ['Axe X', stats.left.x.min.toFixed(2), stats.left.x.avg.toFixed(2), stats.left.x.max.toFixed(2)],\n                    ['Axe Y', stats.left.y.min.toFixed(2), stats.left.y.avg.toFixed(2), stats.left.y.max.toFixed(2)],\n                    ['Axe Z', stats.left.z.min.toFixed(2), stats.left.z.avg.toFixed(2), stats.left.z.max.toFixed(2)],\n                    \n                    [{text: 'Bras Droit (' + stats.right.activityName + ')', colSpan: 4, alignment: 'center', fillColor: '#4CAF50', color: 'white', bold: true}, {}, {}, {}],\n                    ['Axe X', stats.right.x.min.toFixed(2), stats.right.x.avg.toFixed(2), stats.right.x.max.toFixed(2)],\n                    ['Axe Y', stats.right.y.min.toFixed(2), stats.right.y.avg.toFixed(2), stats.right.y.max.toFixed(2)],\n                    ['Axe Z', stats.right.z.min.toFixed(2), stats.right.z.avg.toFixed(2), stats.right.z.max.toFixed(2)]\n                ]\n            }\n        },\n        \n        { text: 'Analyse Graphique', style: 'subheader', margin: [0, 20, 0, 0], pageBreak: 'before' }, \n        \n        // GÉNÉRATION DES GRAPHIQUES APPEL FONCTION\n        createSvgChart(stats.left.history, \"Bras Gauche\", stats.left.activityName, \"#2196F3\"),\n        createSvgChart(stats.right.history, \"Bras Droit\", stats.right.activityName, \"#4CAF50\"),\n\n        { text: '\\nÉchantillons: ' + (stats.left.count + stats.right.count), fontSize: 10, alignment:'center' }\n    ],\n    styles: {\n        header: { fontSize: 22, bold: true, alignment: 'center', color: '#2196F3', margin: [0, 0, 0, 10] },\n        subheader: { fontSize: 14, alignment: 'center', margin: [0, 0, 0, 20] },\n        tableHeader: { bold: true, fontSize: 12, color: 'black', fillColor: '#eeeeee', alignment: 'center' },\n        tableExample: { margin: [0, 5, 0, 15] }\n    }\n};\n\nmsg.payload = doc;\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 850,
+        "y": 500,
+        "wires": [
+            [
+                "c608da1ce39f6f98"
+            ]
+        ]
+    },
+    {
+        "id": "c608da1ce39f6f98",
+        "type": "pdfmake",
+        "z": "f5817b640c5e8c94",
+        "name": "Generate PDF",
+        "outputType": "Buffer",
+        "inputProperty": "payload",
+        "options": "{}",
+        "outputProperty": "payload",
+        "x": 1060,
+        "y": 500,
+        "wires": [
+            [
+                "3d166f7cd7033698",
+                "dd12ef5218112a15"
+            ]
+        ]
+    },
+    {
+        "id": "3d166f7cd7033698",
+        "type": "file",
+        "z": "f5817b640c5e8c94",
+        "name": "💾 Save Pi Local",
+        "filename": "/tmp/mon_rapport.pdf",
+        "filenameType": "str",
+        "appendNewline": false,
+        "createDir": true,
+        "overwriteFile": "true",
+        "encoding": "none",
+        "x": 1250,
+        "y": 520,
+        "wires": [
+            [
+                "b8080619d9db9a0a"
+            ]
+        ]
+    },
+    {
+        "id": "dd12ef5218112a15",
+        "type": "function",
+        "z": "f5817b640c5e8c94",
+        "name": "Convert to Base64",
+        "func": "// Le Dashboard a besoin d'une chaine base64 pour télécharger\nmsg.payload = msg.payload.toString('base64');\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1250,
+        "y": 460,
+        "wires": [
+            [
+                "d5033e97827a114f"
+            ]
+        ]
+    },
+    {
+        "id": "d5033e97827a114f",
+        "type": "ui-template",
+        "z": "f5817b640c5e8c94",
+        "group": "3f6f57d5cb7f8161",
+        "name": "Auto Download Script",
+        "order": 5,
+        "width": 0,
+        "height": 0,
+        "format": "<template>\n    <div style=\"display:none\">\n        \n        <a v-if=\"pdfUrl\" :href=\"pdfUrl\" download=\"Rapport_Reeducation.pdf\" id=\"pdfLink\">Download</a>\n    </div>\n</template>\n\n<script>\nexport default {\n    data() {\n        return {\n            pdfUrl: null\n        }\n    },\n    watch: {\n        msg: function(newMsg) {\n            if (newMsg && newMsg.payload) {\n                // Création du lien Blob à partir du Base64 reçu\n                this.pdfUrl = \"data:application/pdf;base64,\" + newMsg.payload;\n                \n                // Petit délai pour laisser le DOM se mettre à jour puis clic auto\n                setTimeout(() => {\n                    const link = document.getElementById('pdfLink');\n                    if(link) link.click();\n                }, 100);\n            }\n        }\n    }\n}\n</script>",
+        "storeOutMessages": true,
+        "resendOnRefresh": false,
+        "templateScope": "local",
+        "className": "",
+        "x": 1460,
+        "y": 460,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "b8080619d9db9a0a",
+        "type": "ui-notification",
+        "z": "f5817b640c5e8c94",
+        "ui": "ui_base",
+        "position": "top right",
+        "color": "green",
+        "displayTime": "5",
+        "outputs": 1,
+        "raw": false,
+        "className": "",
+        "x": 1450,
+        "y": 520,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "3fcfd32b336f0962",
+        "type": "mqtt out",
+        "z": "f5817b640c5e8c94",
+        "name": "📢 Vers LED ESP32",
+        "topic": "patient/P001/test/status",
+        "qos": "0",
+        "retain": "false",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "mqtt_broker_local",
+        "x": 680,
+        "y": 580,
+        "wires": []
+    },
+    {
+        "id": "3c50e2f8daef2b3f",
+        "type": "inject",
+        "z": "f5817b640c5e8c94",
+        "name": "STOP",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "STOP",
+        "payloadType": "str",
+        "x": 370,
+        "y": 640,
+        "wires": [
+            [
+                "3fcfd32b336f0962"
+            ]
+        ]
+    },
+    {
+        "id": "335f562176853cbd",
+        "type": "inject",
+        "z": "f5817b640c5e8c94",
+        "name": "START",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "START",
+        "payloadType": "str",
+        "x": 370,
+        "y": 580,
+        "wires": [
+            [
+                "3fcfd32b336f0962"
+            ]
+        ]
+    },
+    {
+        "id": "mqtt_broker_local",
+        "type": "mqtt-broker",
+        "name": "Mosquitto Local",
+        "broker": "172.18.32.40",
+        "port": "1883",
+        "clientid": "",
+        "usetls": false,
+        "protocolVersion": "4",
+        "keepalive": "60",
+        "cleansession": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthRetain": "false",
+        "birthPayload": "",
+        "closeTopic": "",
+        "closeQos": "0",
+        "closeRetain": "false",
+        "closePayload": "",
+        "willTopic": "",
+        "willQos": "0",
+        "willRetain": "false",
+        "willPayload": ""
+    },
+    {
+        "id": "ui_group_left",
+        "type": "ui-group",
+        "name": "🫲 Bras Gauche",
+        "page": "ui_page_rehab",
+        "width": "6",
+        "height": "1",
+        "order": 1,
+        "className": ""
+    },
+    {
+        "id": "ui_group_right",
+        "type": "ui-group",
+        "name": "🫱 Bras Droit",
+        "page": "ui_page_rehab",
+        "width": "6",
+        "height": "1",
+        "order": 2,
+        "className": ""
+    },
+    {
+        "id": "3f6f57d5cb7f8161",
+        "type": "ui-group",
+        "name": "⚙️ Tests & Rapports",
+        "page": "ui_page_rehab",
+        "width": "12",
+        "height": "1",
+        "order": 3,
+        "className": ""
+    },
+    {
+        "id": "ui_base",
+        "type": "ui-base",
+        "name": "Dashboard Rehab",
+        "path": "/dashboard",
+        "includeClientData": true,
+        "acceptsClientConfig": [
+            "ui-notification",
+            "ui-control"
+        ]
+    },
+    {
+        "id": "ui_page_rehab",
+        "type": "ui-page",
+        "name": "Rééducation Patient P001",
+        "ui": "ui_base",
+        "path": "/patient-p001",
+        "icon": "heart-pulse",
+        "layout": "grid",
+        "theme": "theme_default",
+        "order": 1,
+        "className": ""
+    },
+    {
+        "id": "theme_default",
+        "type": "ui-theme",
+        "name": "Theme Medical",
+        "colors": {
+            "surface": "#ffffff",
+            "primary": "#2196F3",
+            "bgPage": "#f5f5f5",
+            "groupBg": "#ffffff",
+            "groupOutline": "#e0e0e0"
+        },
+        "sizes": {
+            "pagePadding": "12px",
+            "groupGap": "12px",
+            "groupBorderRadius": "8px",
+            "widgetGap": "12px"
+        }
+    },
+    {
+        "id": "59934742bda4c354",
+        "type": "global-config",
+        "env": [],
+        "modules": {
+            "@flowfuse/node-red-dashboard": "1.30.0",
+            "node-red-contrib-pdfmake": "1.1.0"
+        }
+    }
+]
