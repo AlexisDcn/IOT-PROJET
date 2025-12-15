@@ -6,8 +6,8 @@
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 
-// Edge Impulse - ADAPTE LE NOM SI DIFFÉRENT!
-#include <rehabilitation-hemineglect_inferencing.h>
+// Edge Impulse
+#include "rehabilitation-hemineglect_inferencing.h"
 
 #ifndef WIFI_SSID
 #define WIFI_SSID "iot"
@@ -31,11 +31,26 @@ const char* mqtt_server = MQTT_SERVER;
 const char* patient_id  = PATIENT_ID;
 const char* hand_side   = HAND_SIDE;
 
+// ⭐ CALIBRATION OFFSETS (mesurés au repos)
+// Ajuste ces valeurs selon tes mesures réelles
+#define OFFSET_X -1.0
+#define OFFSET_Y 0.0
+#define OFFSET_Z -8.50
+
 // MPU6050
 Adafruit_MPU6050 mpu;
 #define FREQUENCY_HZ 62
 #define INTERVAL_MS (1000 / (FREQUENCY_HZ + 1))
 static unsigned long last_interval_ms = 0;
+
+// Publication accéléromètre (toutes les 100ms = 10Hz)
+#define ACCEL_PUBLISH_INTERVAL 100
+// Décimation: publier toutes les N publications (1 = toutes les fois)
+#ifndef ACCEL_PUBLISH_DECIMATION
+#define ACCEL_PUBLISH_DECIMATION 4
+#endif
+static unsigned long last_accel_publish = 0;
+static unsigned int accel_publish_counter = 0;
 
 // Buffer for TinyML (625 samples = 10 sec @ 62.5 Hz, 3 axes)
 float features[EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE];
@@ -44,7 +59,6 @@ size_t feature_ix = 0;
 // MQTT
 WiFiClient espClient;
 PubSubClient client(espClient);
-static unsigned long lastMqtt = 0;
 
 void reconnect_mqtt() {
   while (!client.connected()) {
@@ -56,6 +70,23 @@ void reconnect_mqtt() {
       delay(5000);
     }
   }
+}
+
+void publish_accel(float x, float y, float z) {
+  StaticJsonDocument<200> doc;
+  doc["x"] = x;
+  doc["y"] = y;
+  doc["z"] = z;
+  doc["hand"] = hand_side;
+  doc["timestamp"] = millis();
+  
+  char jsonBuffer[256];
+  serializeJson(doc, jsonBuffer);
+  
+  char topic[100];
+  snprintf(topic, sizeof(topic), "patient/%s/bracelet/%s/accel", patient_id, hand_side);
+  
+  client.publish(topic, jsonBuffer);
 }
 
 void publish_activity(const char* activity, float confidence) {
@@ -96,8 +127,8 @@ void setup() {
   delay(1000);
   
   Serial.println("\n╔════════════════════════════════════╗");
-  Serial.println("║  BRACELET + MPU6050 + TinyML");
-  Serial.println("║  (Normalized + Low Threshold)");
+  Serial.println("║  BRACELET GAUCHE + MPU6050");
+  Serial.println("║  Accel Calibré + Activity MQTT");
   Serial.println("╚════════════════════════════════════╝");
   
   // MPU6050
@@ -130,22 +161,21 @@ void setup() {
   
   // MQTT
   client.setServer(mqtt_server, 1883);
+  client.setBufferSize(512);
   
   // TinyML Info
   Serial.print("TinyML model: ");
   Serial.println(EI_CLASSIFIER_PROJECT_NAME);
-  Serial.print("Features: ");
-  Serial.println(EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE);
-  Serial.print("Classes: ");
-  Serial.println(EI_CLASSIFIER_LABEL_COUNT);
-  
-  for (size_t ix = 0; ix < EI_CLASSIFIER_LABEL_COUNT; ix++) {
-    ei_printf("  - %s\n", ei_classifier_inferencing_categories[ix]);
-  }
+  Serial.print("Calibration: X=");
+  Serial.print(OFFSET_X);
+  Serial.print(" Y=");
+  Serial.print(OFFSET_Y);
+  Serial.print(" Z=");
+  Serial.println(OFFSET_Z);
   
   Serial.println("\n════════════════════════════════════");
   Serial.println("Ready! Recording @ 62.5 Hz...");
-  Serial.println("Normalized + Threshold 0.5");
+  Serial.println("Publishing accel @ 10 Hz");
   Serial.println("════════════════════════════════════\n");
 }
 
@@ -166,16 +196,25 @@ void loop() {
     sensors_event_t a, g, temp;
     mpu.getEvent(&a, &g, &temp);
     
-    // ⭐ NORMALIZE: Subtract gravity from Z axis
-    // This removes the constant 9.81 m/s² gravity effect
-    float norm_x = a.acceleration.x;
-    float norm_y = a.acceleration.y;
-    float norm_z = a.acceleration.z - 9.81;
+    // ⭐ CALIBRATION: Soustraire les offsets mesurés au repos
+    float cal_x = a.acceleration.x - OFFSET_X;
+    float cal_y = a.acceleration.y - OFFSET_Y;
+    float cal_z = a.acceleration.z - OFFSET_Z;
     
-    // Store normalized data
-    features[feature_ix++] = norm_x;
-    features[feature_ix++] = norm_y;
-    features[feature_ix++] = norm_z;
+    // Store calibrated data for TinyML
+    features[feature_ix++] = cal_x;
+    features[feature_ix++] = cal_y;
+    features[feature_ix++] = cal_z;
+    
+    // 📡 Publish accelerometer data @ configured interval, with decimation
+    if (millis() > last_accel_publish + ACCEL_PUBLISH_INTERVAL) {
+      last_accel_publish = millis();
+      accel_publish_counter++;
+      if (accel_publish_counter >= ACCEL_PUBLISH_DECIMATION) {
+        accel_publish_counter = 0;
+        publish_accel(cal_x, cal_y, cal_z);
+      }
+    }
     
     // When buffer full, run inference
     if (feature_ix == EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE) {
@@ -217,8 +256,6 @@ void loop() {
       
       ei_printf("Inference time: %lu ms\n", result.timing.classification);
       
-      // ⭐ LOWER THRESHOLD: Accept lower confidence
-      // Changed from 0.7 to 0.5 to reduce "all rest" problem
       if (max_confidence > 0.5) {
         ei_printf("✓ Best: %s (%.0f%%)\n", best_activity, max_confidence * 100);
         publish_activity(best_activity, max_confidence);
