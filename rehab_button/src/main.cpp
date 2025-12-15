@@ -1,8 +1,8 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <PubSubClient.h>
-#include <ArduinoJson.h>
 
+// Paramètres par défaut (écrasés par platformio.ini)
 #ifndef WIFI_SSID
 #define WIFI_SSID "iot"
 #endif
@@ -16,132 +16,91 @@
 #define PATIENT_ID "P001"
 #endif
 
+// Configuration LED (La LED intégrée sur FireBeetle32 est souvent sur le GPIO 2)
+#define LED_PIN 5
+
 const char* ssid        = WIFI_SSID;
 const char* password    = WIFI_PASS;
 const char* mqtt_server = MQTT_SERVER;
-const char* patient_id  = PATIENT_ID;
 
-// Button (entre GPIO14 et GND)
-#define BUTTON_PIN 14
-unsigned long last_press_time = 0;
-#define DEBOUNCE_DELAY 200  // ms
-bool last_state = HIGH;     // avec INPUT_PULLUP, au repos = HIGH
+// Topic à écouter : patient/P001/test/status
+char status_topic[100];
 
-// MQTT
 WiFiClient espClient;
 PubSubClient client(espClient);
 
-void reconnect_mqtt() {
+// --- Fonction appelée quand un message arrive ---
+void callback(char* topic, byte* payload, unsigned int length) {
+  Serial.print("Message reçu [");
+  Serial.print(topic);
+  Serial.print("] : ");
+
+  // Conversion du payload en String pour faciliter la comparaison
+  String message = "";
+  for (unsigned int i = 0; i < length; i++) {
+    message += (char)payload[i];
+  }
+  Serial.println(message);
+
+  // LOGIQUE DE LA LED
+  if (message == "START") {
+    digitalWrite(LED_PIN, HIGH); // Allumer
+    Serial.println("💡 LED ALLUMÉE (Test en cours)");
+  }
+  else if (message == "STOP") {
+    digitalWrite(LED_PIN, LOW);  // Éteindre
+    Serial.println("🌑 LED ÉTEINTE (Test fini)");
+  }
+}
+
+void reconnect() {
   while (!client.connected()) {
-    Serial.print("MQTT...");
-    String clientId = String("ESP32_Button_") + random(10000);
+    Serial.print("Connexion MQTT...");
+    String clientId = "ESP32_LedStatus_" + String(PATIENT_ID);
+    
     if (client.connect(clientId.c_str())) {
-      Serial.println("✓");
+      Serial.println("Connecté !");
+      // On s'abonne au topic de statut
+      client.subscribe(status_topic);
+      Serial.print("Abonné à : ");
+      Serial.println(status_topic);
     } else {
-      Serial.print(" failed, rc=");
+      Serial.print("Echec, rc=");
       Serial.print(client.state());
-      Serial.println(" retry in 5s");
+      Serial.println(" nouvelle tentative dans 5s");
       delay(5000);
     }
   }
 }
 
-void publish_button_press() {
-  StaticJsonDocument<150> doc;
-  doc["event"] = "button_pressed";
-  doc["patient"] = patient_id;
-  doc["timestamp"] = millis();
-
-  char jsonBuffer[200];
-  serializeJson(doc, jsonBuffer);
-
-  char topic[100];
-  snprintf(topic, sizeof(topic), "patient/%s/button/press", patient_id);
-
-  if (client.publish(topic, jsonBuffer)) {
-    Serial.print("✓ MQTT published: ");
-    Serial.println(jsonBuffer);
-  } else {
-    Serial.println("❌ MQTT publish failed");
-  }
-}
-
 void setup() {
   Serial.begin(115200);
-  delay(1000);
+  pinMode(LED_PIN, OUTPUT);
+  digitalWrite(LED_PIN, LOW); // Eteint au démarrage
 
-  Serial.println("\n╔════════════════════════════════════╗");
-  Serial.println("║  BUTTON POUSSOIR ESP32");
-  Serial.println("╚════════════════════════════════════╝");
+  // Construction du topic dynamique
+  snprintf(status_topic, sizeof(status_topic), "patient/%s/test/status", PATIENT_ID);
 
-  // Bouton
-  pinMode(BUTTON_PIN, INPUT_PULLUP);
-  delay(100); // Stabilisation
-  last_state = digitalRead(BUTTON_PIN); // Sync avec état réel
-  Serial.println("✓ Button on GPIO14 (INPUT_PULLUP)");
-  Serial.print("Initial state: ");
-  Serial.println(last_state ? "HIGH" : "LOW");
-
+  Serial.println("\n--- ESP32 TÉMOIN LUMINEUX ---");
+ 
   // WiFi
-  Serial.println("\nWiFi connecting...");
   WiFi.begin(ssid, password);
-  int attempts = 0;
-  while (WiFi.status() != WL_CONNECTED && attempts < 20) {
+  while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
-    attempts++;
   }
-  Serial.println("");
-  if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("✓ WiFi OK");
-    Serial.print("IP: ");
-    Serial.println(WiFi.localIP());
-  } else {
-    Serial.println("❌ WiFi failed!");
-  }
+  Serial.println("\nWiFi OK");
+  Serial.print("IP: ");
+  Serial.println(WiFi.localIP());
 
   // MQTT
   client.setServer(mqtt_server, 1883);
-  reconnect_mqtt();
-
-  Serial.println("\n════════════════════════════════════");
-  Serial.println("Ready! Press button on GPIO14...");
-  Serial.println("════════════════════════════════════\n");
+  client.setCallback(callback); // On définit la fonction de réception
 }
 
 void loop() {
-  // MQTT maintenance
-  if (WiFi.status() != WL_CONNECTED) {
-    WiFi.begin(ssid, password);
-  }
   if (!client.connected()) {
-    reconnect_mqtt();
+    reconnect();
   }
   client.loop();
-
-  // Lecture bouton
-  bool current = digitalRead(BUTTON_PIN);
-
-  // Debug: afficher les changements d'état
-  if (current != last_state) {
-    Serial.print("State change: ");
-    Serial.print(last_state ? "HIGH" : "LOW");
-    Serial.print(" -> ");
-    Serial.println(current ? "HIGH" : "LOW");
-  }
-
-  // Front descendant: HIGH -> LOW (appui avec INPUT_PULLUP)
-  if (last_state == HIGH && current == LOW) {
-    unsigned long now = millis();
-    if (now - last_press_time > DEBOUNCE_DELAY) {
-      Serial.println("🔘 BUTTON PRESSED (edge)!");
-      publish_button_press();
-      last_press_time = now;
-    } else {
-      Serial.println("(debounced - too soon)");
-    }
-  }
-
-  last_state = current;
-  delay(5);
 }
